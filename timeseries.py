@@ -18,6 +18,9 @@ class timeseries:
     def getObservations(self):
         return self.observations
     
+    def getShape(self):
+        return self.observations.shape
+    
     def pop(self):
         popped = self.observations[-1]
         self.setObservations(self.observations[:-1])
@@ -78,7 +81,6 @@ class timeseries:
 
     
     def transforms(self, transformName: str, lmb = 0):
-        
         match transformName:
             case 'Box-Cox':
                 self.boxCox(lmb)
@@ -94,7 +96,8 @@ class timeseries:
         _temp = self.observations.T
         flag = 0
         for n in _temp:
-            _temp[flag] = (n - n.min()) / (n.max() - n.min())
+            if n.dtype == float or n.dtype == int:
+                _temp[flag] = (n - n.min()) / (n.max() - n.min())
             flag += 1
 
         if self.debugger == True:
@@ -104,10 +107,14 @@ class timeseries:
 
     def boxCox(self, lmb):
         _temp = self.observations.T
-        if lmb == 0:
-            _temp = numpy.log(_temp)
-        else:
-            _temp = (_temp**lmb - 1) / lmb
+        flag = 0
+        for n in _temp:
+            if n.dtype == float or n.dtype == int:
+                if lmb[flag] == 0:
+                    _temp[flag] = numpy.log(n)
+                else:
+                    _temp[flag] = (n**lmb[flag] - 1) / lmb[flag]
+            flag += 1
         if self.debugger == True:
             print(f"Post transform: {_temp.T}")
         self.setObservations(_temp.T)
@@ -117,7 +124,8 @@ class timeseries:
         _temp = self.observations.T
         flag = 0
         for n in _temp:
-            _temp[flag] = (n - n.mean()) / n.std()
+            if n.dtype == float or n.dtype == int:
+                _temp[flag] = (n - n.mean()) / n.std()
             flag += 1
 
         if self.debugger == True:
