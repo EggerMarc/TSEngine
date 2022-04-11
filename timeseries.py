@@ -1,5 +1,8 @@
 #TODO: Kurtosis, KurtosisN, MedianN, Transforms (Box-Cox)
 from distutils.log import debug
+from xml.dom.minidom import Attr
+
+from numpy import ndarray
 from header import *
 
 class timeseries:
@@ -24,20 +27,29 @@ class timeseries:
     def pop(self):
         popped = self.observations[-1]
         self.setObservations(self.observations[:-1])
-        return popped
+        if self.debugger == True:
+            print(f"After pop type: {type(popped)}")
+        return numpy.array(popped)
 
     def append(self, x):
         if self.debugger == True:
-            print(f"x shape: {numpy.array([x]).shape} \nData[-1] shape: {self.observations[-1].shape}")
-        assert numpy.array([x]).shape == self.observations[-1].shape, 'Incompatible shape'
-        temp = self.observations.tolist()
-        temp.append([x])
-        self.setObservations(numpy.array(temp))
+            #The shapes of an input e.g. [1,1,1] is (1,3), whereas the last observation on 3 cols is (3,)
+            #This solution allows for more than one column per append. It simply has to be a matrix of the
+            #same column size.
+            print(f"x shape: {numpy.array([x]).shape[-1]} \nData[-1] shape: {self.observations[-1].shape[0]}")
+        assert numpy.array([x]).shape[-1] == self.observations[-1].shape[0], 'Incompatible shape'
+        _temp = self.observations.tolist()
+        _temp.append([x])
+        self.setObservations(numpy.array(_temp))
         pass
     
     def setObservations(self, x):
         assert type(x) == numpy.ndarray, 'Not a numpy array'
-        self.observations = x
+        self.observations = numpy.array(x, dtype=ndarray)
+        #Below is deprecated
+        #self.observations = numpy.array([numpy.array(n) for n in x]) #This is probably not very efficient for large observations. Will need to research how to numpyify inner arrays
+        if self.debugger == True:
+            print(f"Set type to: {type(self.observations)}\nRow types:{[type(n) for n in self.observations]}")
         pass
 
     def head(self, N = 5):
@@ -62,7 +74,7 @@ class timeseries:
         
         else:
             plt.figure()
-            plt.plot(self.observations)
+            plt.plot(self.difference)
             plt.show()
 
     def meanN(self, N):
@@ -81,57 +93,108 @@ class timeseries:
 
     
     def transforms(self, transformName: str, lmb = 0):
-        match transformName:
-            case 'Box-Cox':
-                self.boxCox(lmb)
-            case 'Custom':
-                self.customTransform()
-            case 'Standardize':
-                self.standardize()
-            case 'Normalize':
-                self.normalize()
-        pass
+        if transformName == 'Box-Cox':
+            self.boxCox(lmb)
+            return self
+        elif transformName == 'Custom':
+            self.customTransform()
+            return self
+        elif transformName == 'Standardize':
+            self.standardize()
+            return self
+        elif transformName == 'Normalize':
+            self.normalize()
+            return self
+
+        else:
+            print('Undefined transformation.')
 
     def normalize(self):
         _temp = self.observations.T
         flag = 0
         for n in _temp:
-            if n.dtype == float or n.dtype == int:
+            try:
+                n = numpy.array(n, dtype=float)
                 _temp[flag] = (n - n.min()) / (n.max() - n.min())
+            except AttributeError:
+                continue
             flag += 1
 
         if self.debugger == True:
             print(f"Post transform: {_temp.T}")
         self.setObservations(_temp.T)
-        pass
+        return self
 
     def boxCox(self, lmb):
         _temp = self.observations.T
         flag = 0
         for n in _temp:
-            if n.dtype == float or n.dtype == int:
+            if self.debugger == True:
+                print(f"n: {numpy.array(n).dtype}")
+            try:
+                n = numpy.array(n, dtype=float)
                 if lmb[flag] == 0:
                     _temp[flag] = numpy.log(n)
                 else:
                     _temp[flag] = (n**lmb[flag] - 1) / lmb[flag]
+            except AttributeError:
+                continue
             flag += 1
         if self.debugger == True:
             print(f"Post transform: {_temp.T}")
         self.setObservations(_temp.T)
-        pass
+        return self
 
     def standardize(self):
-        _temp = self.observations.T
+        _temp = numpy.array(self.observations.T)
         flag = 0
         for n in _temp:
-            if n.dtype == float or n.dtype == int:
+            try:
+                n = numpy.array(n, dtype=float)
                 _temp[flag] = (n - n.mean()) / n.std()
+            except AttributeError:
+                continue
             flag += 1
 
         if self.debugger == True:
             print(f"Post transform: {_temp.T}")
         self.setObservations(_temp.T)
         pass
+
+    def difference(self):
+        #self.difference = numpy.zeros(self.observations.shape[1])
+        #print(self.difference)
+
+        
+        _temp = numpy.insert(self.observations, 0, numpy.zeros(self.observations.shape[1]), axis = 0)[:-1]
+        #print(_temp)
+        print(self.observations.shape)
+        print(_temp.shape)
+        self.difference = (self.observations - _temp)[1:]
+        
+        if self.debugger == True:
+            print(f"Difference shape: {self.difference.shape}")
+        return self.difference
+    
+    def autocorrelation(self, lag: int = 1):
+        self.autoArray = numpy.zeros(self.observations.shape[1])
+
+        _temp = numpy.array(self.observations)
+        _tempt = self.observations.T
+
+        for l in range(lag):
+            _temp = numpy.insert(_temp, 0, numpy.zeros(self.observations.shape[1]), axis = 0)[:-1]
+        
+        _temp = _temp.T
+
+        #print(f"_temp shape: {_temp[1][lag:].shape}\n_tempt shape: {_tempt[1][lag:].shape}")
+
+        mean = _tempt.mean(axis = 1)
+        for n in range(0,self.observations.shape[1]):
+            #Categorical handler still not implemented. 
+            self.autoArray[n] += (_temp[n][lag:] - mean[n])@(_tempt[n][lag:] - mean[n]) / ((_temp[n][lag:] - mean[n])@(_temp[n][lag:] - mean[n]))
+
+        return self.autoArray
 
     def customTransform(self):
         pass
@@ -141,3 +204,7 @@ class timeseries:
 
     def kurtosisN(self):
         return
+
+    def moment(self):
+
+        return _moment

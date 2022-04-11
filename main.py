@@ -4,15 +4,23 @@ import csv
 PATH = './Data/cmort'
 
 def run():
-    values = timeseries(path = PATH, debugger = False)
+    xx = numpy.random.rand(10,3)
+    values = timeseries(observations=xx, debugger = False)
+
+    
     #print(values.meanN(2))
     #values.head(10)
-    values.append(numpy.NaN)
-    values.pop()
+    #values.append(numpy.array([2,2,2]))
+    #values.pop()
 
-    values.visualize()
-    values.transforms('Box-Cox', [4,2])
-    values.visualize()
+    values.setObservations(xx)
+
+    #values.visualize()
+    values.transforms('Box-Cox', [10000,1,1])
+    #print(values.getObservations())
+    #print(values.autocorrelation(lag  = 5))
+    print(values.difference())
+    #values.visualize()
     return
 
 if __name__ == '__main__':
