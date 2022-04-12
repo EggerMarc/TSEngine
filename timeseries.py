@@ -1,4 +1,4 @@
-#TODO: Kurtosis, KurtosisN, MedianN, 
+#TODO: Kurtosis, KurtosisN, Moment
 
 from header import *
 
