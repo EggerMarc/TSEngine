@@ -1,8 +1,5 @@
-#TODO: Kurtosis, KurtosisN, MedianN, Transforms (Box-Cox)
-from distutils.log import debug
-from xml.dom.minidom import Attr
+#TODO: Kurtosis, KurtosisN, MedianN, 
 
-from numpy import ndarray
 from header import *
 
 class timeseries:
@@ -79,17 +76,17 @@ class timeseries:
 
     def meanN(self, N):
         if self.debugger == True:
-            print(self.observations[:N].T)
-        return self.observations[:N].T.mean(axis = 1).T
+            print(self.observations[-N:].T)
+        return self.observations[-N:].T.mean(axis = 1).T
     
     def stdN(self, N):
-        return self.observations[:N].T.std(axis = 1).T
+        return self.observations[-N:].T.std(axis = 1).T
 
     def median(self):
         return self.observations.T.median(axis = 1).T
 
     def medianN(self, N):
-        return self.observations[:N].T.median(axis = 1).T
+        return self.observations[-N:].T.median(axis = 1).T
 
     
     def transforms(self, transformName: str, lmb = 0):
@@ -162,14 +159,8 @@ class timeseries:
         pass
 
     def difference(self):
-        #self.difference = numpy.zeros(self.observations.shape[1])
-        #print(self.difference)
-
-        
         _temp = numpy.insert(self.observations, 0, numpy.zeros(self.observations.shape[1]), axis = 0)[:-1]
-        #print(_temp)
-        print(self.observations.shape)
-        print(_temp.shape)
+
         self.difference = (self.observations - _temp)[1:]
         
         if self.debugger == True:
@@ -182,12 +173,11 @@ class timeseries:
         _temp = numpy.array(self.observations)
         _tempt = self.observations.T
 
-        for l in range(lag):
+        for l in range(lag): #Could get rid of l, but a while loop damages lag 
+                             #and I don't want to instantiate a new var outside the scope of the loop for this
             _temp = numpy.insert(_temp, 0, numpy.zeros(self.observations.shape[1]), axis = 0)[:-1]
         
         _temp = _temp.T
-
-        #print(f"_temp shape: {_temp[1][lag:].shape}\n_tempt shape: {_tempt[1][lag:].shape}")
 
         mean = _tempt.mean(axis = 1)
         for n in range(0,self.observations.shape[1]):
